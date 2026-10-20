@@ -189,22 +189,18 @@
 
     <!-- LEAFLET JS SCRIPT -->
     <script>
-        // Initialize Map centered in Sri Lanka
         const map = L.map('map').setView([7.8731, 80.7718], 8);
 
-        // Base Map Layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Layer Groups for toggling
         const studyAreaLayer = L.layerGroup().addTo(map);
         const popLayer = L.layerGroup().addTo(map);
         const forestLayer = L.layerGroup().addTo(map);
         const drainageLayer = L.layerGroup().addTo(map);
 
-        // Helper function to load geojson with error handling
         function loadGeoJSON(url, styleOptions, popupCallback, targetGroup) {
             fetch(url)
                 .then(response => {
@@ -220,7 +216,7 @@
                 .catch(err => console.error(`Error loading ${url}:`, err));
         }
 
-        // 1. Load Study Area (DSD / GND)
+        // 1. Study Area Load
         loadGeoJSON(
             './study_area.geojson',
             { color: "#333", weight: 1.5, fillOpacity: 0.2, fillColor: "#cbd5e1" },
@@ -232,7 +228,7 @@
             studyAreaLayer
         );
 
-        // Load Roads into Study Area Group
+        // Roads Load
         loadGeoJSON(
             './roads.geojson',
             { color: "#e11d48", weight: 1, opacity: 0.8 },
@@ -243,7 +239,7 @@
             studyAreaLayer
         );
 
-        // 2. Load Demography (Population Density - Graduated Colors)
+        // 2. Demography (Pop Density Graduated Colors)
         function getPopColor(density) {
             return density > 1000 ? '#800026' :
                    density > 500  ? '#BD0026' :
@@ -277,7 +273,7 @@
             popLayer
         );
 
-        // 3. Load Physical Environment (Forest Cover)
+        // 3. Physical Environment (Forest Cover)
         loadGeoJSON(
             './forest.geojson',
             { color: "#15803d", weight: 1, fillColor: "#22c55e", fillOpacity: 0.5 },
@@ -288,7 +284,7 @@
             forestLayer
         );
 
-        // 4. Load Drainage Issues (Graduated based on 'new_sum')
+        // 4. Drainage Issues (Graduated based on 'new_sum')
         function getDrainageColor(val) {
             return val > 50 ? '#08519c' :
                    val > 30 ? '#3182bd' :
@@ -304,7 +300,7 @@
                 return {
                     fillColor: getDrainageColor(val),
                     weight: 1,
-                    opacity: 1,
+5                    opacity: 1,
                     color: '#000',
                     fillOpacity: 0.75
                 };
@@ -317,7 +313,6 @@
             drainageLayer
         );
 
-        // Tab Switching Logic
         function switchTab(tabId) {
             const tabs = ['study-area', 'demography', 'land-agri', 'physical', 'drainage'];
             tabs.forEach(t => {
@@ -330,7 +325,6 @@
             });
         }
 
-        // Layer Toggling Function
         function toggleLayer(layer, isChecked) {
             if (isChecked) {
                 map.addLayer(layer);
