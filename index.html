@@ -45,9 +45,8 @@
         </div>
     </header>
 
-    <!-- TOP KPI CARDS (4 STATS) -->
+    <!-- TOP KPI CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <!-- Card 1 -->
         <div class="stat-card bg-[#1b4d3e] text-white p-4 flex justify-between items-start shadow-sm">
             <div>
                 <div class="text-3xl font-bold">46.9%</div>
@@ -57,7 +56,6 @@
             <i class="fa-regular fa-user text-xl opacity-70"></i>
         </div>
 
-        <!-- Card 2 -->
         <div class="stat-card bg-[#a0741c] text-white p-4 flex justify-between items-start shadow-sm">
             <div>
                 <div class="text-3xl font-bold">40.5%</div>
@@ -67,7 +65,6 @@
             <i class="fa-solid fa-seedling text-xl opacity-70"></i>
         </div>
 
-        <!-- Card 3 -->
         <div class="stat-card bg-[#2d3a34] text-white p-4 flex justify-between items-start shadow-sm">
             <div>
                 <div class="text-3xl font-bold">38.2%</div>
@@ -77,7 +74,6 @@
             <i class="fa-solid fa-water text-xl opacity-70"></i>
         </div>
 
-        <!-- Card 4 -->
         <div class="stat-card bg-[#8c4320] text-white p-4 flex justify-between items-start shadow-sm">
             <div>
                 <div class="text-3xl font-bold">-24.5%</div>
@@ -131,7 +127,7 @@
     <!-- MAIN MAP INTERFACE CONTAINER -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         
-        <!-- SIDEBAR: MAP LAYERS & COMMUNITY FORM -->
+        <!-- SIDEBAR: MAP LAYERS & CONTROLS -->
         <div class="bg-white/90 border border-gray-300 p-4 rounded text-xs space-y-4">
             <div>
                 <h3 class="font-bold text-gray-900 text-sm mb-1">Map Layers & Controls</h3>
@@ -140,26 +136,34 @@
 
             <div class="space-y-3 pt-2">
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" checked onchange="toggleLayer('studyArea', this.checked)" class="mt-0.5">
+                    <input type="checkbox" checked onchange="toggleLayer(studyAreaLayer, this.checked)" class="mt-0.5">
                     <div>
-                        <span class="font-bold text-gray-800">Administrative Study Area</span>
-                        <p class="text-[10px] text-gray-500">Primary boundary - 9 districts</p>
+                        <span class="font-bold text-gray-800">Study Area & Roads</span>
+                        <p class="text-[10px] text-gray-500">DSD & GND boundaries with road networks</p>
                     </div>
                 </label>
 
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" checked onchange="toggleLayer('dsdDrainage', this.checked)" class="mt-0.5">
+                    <input type="checkbox" checked onchange="toggleLayer(popLayer, this.checked)" class="mt-0.5">
                     <div>
-                        <span class="font-bold text-emerald-800">DSD-wise Drainage Issues</span>
-                        <p class="text-[10px] text-gray-500">Waterlogging & blocked canals</p>
+                        <span class="font-bold text-emerald-800">Demography (Pop Density)</span>
+                        <p class="text-[10px] text-gray-500">Graduated density zones</p>
                     </div>
                 </label>
 
                 <label class="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" checked onchange="toggleLayer('agriLands', this.checked)" class="mt-0.5">
+                    <input type="checkbox" checked onchange="toggleLayer(forestLayer, this.checked)" class="mt-0.5">
                     <div>
-                        <span class="font-bold text-gray-800">Agricultural & Paddy Lands</span>
-                        <p class="text-[10px] text-gray-500">Productivity zones</p>
+                        <span class="font-bold text-green-700">Physical Environment (Forests)</span>
+                        <p class="text-[10px] text-gray-500">Protected forest cover</p>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked onchange="toggleLayer(drainageLayer, this.checked)" class="mt-0.5">
+                    <div>
+                        <span class="font-bold text-blue-800">Drainage Issues (New Sum)</span>
+                        <p class="text-[10px] text-gray-500">Graduated issue severity levels</p>
                     </div>
                 </label>
             </div>
@@ -186,13 +190,123 @@
     <!-- LEAFLET JS SCRIPT -->
     <script>
         // Initialize Map
-        const map = L.map('map').setView([7.95, 79.85], 9);
+        const map = L.map('map').setView([7.8731, 80.7718], 8);
 
         // Base Map Layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 18,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
+
+        // Layer Groups for toggling
+        const studyAreaLayer = L.layerGroup().addTo(map);
+        const popLayer = L.layerGroup().addTo(map);
+        const forestLayer = L.layerGroup().addTo(map);
+        const drainageLayer = L.layerGroup().addTo(map);
+
+        // 1. Load Study Area and Roads GeoJSON
+        fetch('study_area.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: "#333", weight: 1.5, fillOpacity: 0.2, fillColor: "#cbd5e1" },
+                    onEachFeature: function (feature, layer) {
+                        const name = feature.properties.name || feature.properties.DSD_NAME || feature.properties.GND_NAME || "Study Area Unit";
+                        layer.bindPopup(`<b>Administrative Unit:</b> ${name}`);
+                    }
+                }).addTo(studyAreaLayer);
+            });
+
+        fetch('roads.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: "#e11d48", weight: 1, opacity: 0.8 },
+                    onEachFeature: function (feature, layer) {
+                        layer.bindPopup(`<b>Road:</b> ${feature.properties.name || "Main Road Network"}`);
+                    }
+                }).addTo(studyAreaLayer);
+            });
+
+        // 2. Load Demography (Population Density - Graduated Colors)
+        function getPopColor(density) {
+            return density > 1000 ? '#800026' :
+                   density > 500  ? '#BD0026' :
+                   density > 200  ? '#E31A1C' :
+                   density > 100  ? '#FC4E2A' :
+                   density > 50   ? '#FD8D3C' :
+                   density > 20   ? '#FEB24C' :
+                   density > 10   ? '#FED976' : '#FFEDA0';
+        }
+
+        fetch('pop_density.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function (feature) {
+                        const dens = feature.properties.density || feature.properties.POP_DEN || 0;
+                        return {
+                            fillColor: getPopColor(dens),
+                            weight: 1,
+                            opacity: 1,
+                            color: 'white',
+                            dashArray: '3',
+                            fillOpacity: 0.7
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const dens = feature.properties.density || feature.properties.POP_DEN || "N/A";
+                        const name = feature.properties.name || feature.properties.DSD_NAME || "GND/DSD Area";
+                        layer.bindPopup(`<b>Area:</b> ${name}<br><b>Population Density:</b> ${dens} /km²`);
+                    }
+                }).addTo(popLayer);
+            });
+
+        // 3. Load Physical Environment (Forest Cover)
+        fetch('forest.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: {
+                        color: "#15803d",
+                        weight: 1,
+                        fillColor: "#22c55e",
+                        fillOpacity: 0.5
+                    },
+                    onEachFeature: function (feature, layer) {
+                        layer.bindPopup(`<b>Protected Forest Cover</b><br>Name: ${feature.properties.name || "Forest Reserve"}`);
+                    }
+                }).addTo(forestLayer);
+            });
+
+        // 4. Load Drainage Issues (Graduated based on 'new_sum')
+        function getDrainageColor(val) {
+            return val > 50 ? '#08519c' :
+                   val > 30 ? '#3182bd' :
+                   val > 15 ? '#6baed6' :
+                   val > 5  ? '#bdd7e7' : '#eff3ff';
+        }
+
+        fetch('drainages.geojson')
+            .then(res => res.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function (feature) {
+                        const val = feature.properties.new_sum || feature.properties.SUM || 0;
+                        return {
+                            fillColor: getDrainageColor(val),
+                            weight: 1,
+                            opacity: 1,
+                            color: '#000',
+                            fillOpacity: 0.75
+                        };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const sumVal = feature.properties.new_sum || feature.properties.SUM || "N/A";
+                        layer.bindPopup(`<b>Drainage Issue Zone</b><br><b>Severity Score (New Sum):</b> ${sumVal}`);
+                    }
+                }).addTo(drainageLayer);
+            });
 
         // Tab Switching Logic
         function switchTab(tabId) {
@@ -207,9 +321,13 @@
             });
         }
 
-        // Layer toggling placeholder
-        function toggleLayer(layerName, isChecked) {
-            console.log(`Layer ${layerName} visibility set to: ${isChecked}`);
+        // Layer Toggling Function
+        function toggleLayer(layer, isChecked) {
+            if (isChecked) {
+                map.addLayer(layer);
+            } else {
+                map.removeLayer(layer);
+            }
         }
     </script>
 </body>
