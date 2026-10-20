@@ -189,7 +189,7 @@
 
     <!-- LEAFLET JS SCRIPT -->
     <script>
-        // Initialize Map
+        // Initialize Map centered in Sri Lanka
         const map = L.map('map').setView([7.8731, 80.7718], 8);
 
         // Base Map Layer
@@ -204,29 +204,44 @@
         const forestLayer = L.layerGroup().addTo(map);
         const drainageLayer = L.layerGroup().addTo(map);
 
-        // 1. Load Study Area and Roads GeoJSON
-        fetch('study_area.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: { color: "#333", weight: 1.5, fillOpacity: 0.2, fillColor: "#cbd5e1" },
-                    onEachFeature: function (feature, layer) {
-                        const name = feature.properties.name || feature.properties.DSD_NAME || feature.properties.GND_NAME || "Study Area Unit";
-                        layer.bindPopup(`<b>Administrative Unit:</b> ${name}`);
-                    }
-                }).addTo(studyAreaLayer);
-            });
+        // Helper function to load geojson with error handling
+        function loadGeoJSON(url, styleOptions, popupCallback, targetGroup) {
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    L.geoJSON(data, {
+                        style: styleOptions,
+                        onEachFeature: popupCallback
+                    }).addTo(targetGroup);
+                })
+                .catch(err => console.error(`Error loading ${url}:`, err));
+        }
 
-        fetch('roads.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: { color: "#e11d48", weight: 1, opacity: 0.8 },
-                    onEachFeature: function (feature, layer) {
-                        layer.bindPopup(`<b>Road:</b> ${feature.properties.name || "Main Road Network"}`);
-                    }
-                }).addTo(studyAreaLayer);
-            });
+        // 1. Load Study Area (DSD / GND)
+        loadGeoJSON(
+            './study_area.geojson',
+            { color: "#333", weight: 1.5, fillOpacity: 0.2, fillColor: "#cbd5e1" },
+            function (feature, layer) {
+                const props = feature.properties || {};
+                const name = props.name || props.DSD_NAME || props.GND_NAME || props.NAME || "Study Area Unit";
+                layer.bindPopup(`<b>Administrative Unit:</b> ${name}`);
+            },
+            studyAreaLayer
+        );
+
+        // Load Roads into Study Area Group
+        loadGeoJSON(
+            './roads.geojson',
+            { color: "#e11d48", weight: 1, opacity: 0.8 },
+            function (feature, layer) {
+                const props = feature.properties || {};
+                layer.bindPopup(`<b>Road:</b> ${props.name || props.ROAD_NAME || "Main Road Network"}`);
+            },
+            studyAreaLayer
+        );
 
         // 2. Load Demography (Population Density - Graduated Colors)
         function getPopColor(density) {
@@ -239,45 +254,39 @@
                    density > 10   ? '#FED976' : '#FFEDA0';
         }
 
-        fetch('pop_density.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: function (feature) {
-                        const dens = feature.properties.density || feature.properties.POP_DEN || 0;
-                        return {
-                            fillColor: getPopColor(dens),
-                            weight: 1,
-                            opacity: 1,
-                            color: 'white',
-                            dashArray: '3',
-                            fillOpacity: 0.7
-                        };
-                    },
-                    onEachFeature: function (feature, layer) {
-                        const dens = feature.properties.density || feature.properties.POP_DEN || "N/A";
-                        const name = feature.properties.name || feature.properties.DSD_NAME || "GND/DSD Area";
-                        layer.bindPopup(`<b>Area:</b> ${name}<br><b>Population Density:</b> ${dens} /km²`);
-                    }
-                }).addTo(popLayer);
-            });
+        loadGeoJSON(
+            './pop_density.geojson',
+            function (feature) {
+                const props = feature.properties || {};
+                const dens = parseFloat(props.density || props.POP_DEN || props.DENSITY || 0);
+                return {
+                    fillColor: getPopColor(dens),
+                    weight: 1,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7
+                };
+            },
+            function (feature, layer) {
+                const props = feature.properties || {};
+                const dens = props.density || props.POP_DEN || props.DENSITY || "N/A";
+                const name = props.name || props.DSD_NAME || props.GND_NAME || "GND/DSD Area";
+                layer.bindPopup(`<b>Area:</b> ${name}<br><b>Population Density:</b> ${dens} /km²`);
+            },
+            popLayer
+        );
 
         // 3. Load Physical Environment (Forest Cover)
-        fetch('forest.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: {
-                        color: "#15803d",
-                        weight: 1,
-                        fillColor: "#22c55e",
-                        fillOpacity: 0.5
-                    },
-                    onEachFeature: function (feature, layer) {
-                        layer.bindPopup(`<b>Protected Forest Cover</b><br>Name: ${feature.properties.name || "Forest Reserve"}`);
-                    }
-                }).addTo(forestLayer);
-            });
+        loadGeoJSON(
+            './forest.geojson',
+            { color: "#15803d", weight: 1, fillColor: "#22c55e", fillOpacity: 0.5 },
+            function (feature, layer) {
+                const props = feature.properties || {};
+                layer.bindPopup(`<b>Protected Forest Cover</b><br>Name: ${props.name || props.FOREST_NAME || "Forest Reserve"}`);
+            },
+            forestLayer
+        );
 
         // 4. Load Drainage Issues (Graduated based on 'new_sum')
         function getDrainageColor(val) {
@@ -287,26 +296,26 @@
                    val > 5  ? '#bdd7e7' : '#eff3ff';
         }
 
-        fetch('drainages.geojson')
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: function (feature) {
-                        const val = feature.properties.new_sum || feature.properties.SUM || 0;
-                        return {
-                            fillColor: getDrainageColor(val),
-                            weight: 1,
-                            opacity: 1,
-                            color: '#000',
-                            fillOpacity: 0.75
-                        };
-                    },
-                    onEachFeature: function (feature, layer) {
-                        const sumVal = feature.properties.new_sum || feature.properties.SUM || "N/A";
-                        layer.bindPopup(`<b>Drainage Issue Zone</b><br><b>Severity Score (New Sum):</b> ${sumVal}`);
-                    }
-                }).addTo(drainageLayer);
-            });
+        loadGeoJSON(
+            './drainages.geojson',
+            function (feature) {
+                const props = feature.properties || {};
+                const val = parseFloat(props.new_sum || props.NEW_SUM || props.SUM || 0);
+                return {
+                    fillColor: getDrainageColor(val),
+                    weight: 1,
+                    opacity: 1,
+                    color: '#000',
+                    fillOpacity: 0.75
+                };
+            },
+            function (feature, layer) {
+                const props = feature.properties || {};
+                const sumVal = props.new_sum || props.NEW_SUM || props.SUM || "N/A";
+                layer.bindPopup(`<b>Drainage Issue Zone</b><br><b>Severity Score (New Sum):</b> ${sumVal}`);
+            },
+            drainageLayer
+        );
 
         // Tab Switching Logic
         function switchTab(tabId) {
